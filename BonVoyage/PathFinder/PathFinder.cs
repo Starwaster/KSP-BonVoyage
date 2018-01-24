@@ -131,10 +131,7 @@ namespace BonVoyage
 			}
 			if (passable) {
 				return neighbours.Where (
-					n => (n.Altitude >= 0 || !mainBody.ocean) &&
-					((n.Altitude - tile.Altitude) < StepSize / 2) &&
-					((n.Altitude - tile.Altitude) > 0 - StepSize / 2)
-				);
+					n => (n.Altitude >= 0 || !mainBody.ocean) );
 			}
 			else
 				return neighbours;
