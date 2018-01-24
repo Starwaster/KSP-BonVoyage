@@ -56,17 +56,6 @@ namespace BonVoyage
 		[KSPField(isPersistant = true)] //, guiName = "Last Updated", guiActive = false)]
 		public double lastTime = 0;
 
-		[KSPField(isPersistant = true)]
-		public double chargeAmount = 0;
-
-		[KSPField(isPersistant = true)]
-		public double totalPowerAvailable;
-
-		[KSPField(isPersistant = true)]
-		public double totalPowerRequired;
-
-		double chargeMaxAmount = 0; // chargeMaxAmount unused but need to have somewhere for maxAmount to go when we call GetConnectedResourceTotals
-
 		[KSPField(isPersistant = true)] //, guiName = "Solar powered", guiActive = false)]
 		public bool solarPowered = true;
 
@@ -79,7 +68,6 @@ namespace BonVoyage
 		public double solarPower;
 		public double otherPower;
 		public double powerRequired;
-		public double travelDuration;
 
 		public WheelTestResult testResult = new WheelTestResult();
 
@@ -118,8 +106,6 @@ namespace BonVoyage
 			// Check for power production
 			solarPower = CalculateSolarPower ();
 			otherPower = CalculateOtherPower ();
-			this.part.GetConnectedResourceTotals(PartResourceLibrary.ElectricityHashcode, out chargeAmount, out chargeMaxAmount);
-
 
 			// If alternative power sources produce more then required
 			// Rover will ride forever :D
@@ -272,29 +258,16 @@ namespace BonVoyage
 			if (!this.isManned) //{
 //				averageSpeed = averageSpeed * 0.2;
 				ScreenMessages.PostScreenMessage ("Rover is unmanned, 80% speed penalty!");
-			//			}
-			//
-			//			// Generally moving at high speed requires less power than wheels' max consumption
-			//			// BV will require max online wheels consumption to be less than 35% of max power production
-			//			powerRequired = wheelsTest.powerRequired / 100 * 35;
+//			}
+//
+//			// Generally moving at high speed requires less power than wheels' max consumption
+//			// BV will require max online wheels consumption to be less than 35% of max power production
+//			powerRequired = wheelsTest.powerRequired / 100 * 35;
 
-			//			double solarPower = CalculateSolarPower();
-			//			double otherPower = CalculateOtherPower();
+//			double solarPower = CalculateSolarPower();
+//			double otherPower = CalculateOtherPower();
 
-			//                    power/s      *  (duration = distance / speed)
-
-			Vector3d vesselPos = vessel.mainBody.position - vessel.GetWorldPos3D();
-			Vector3d toKerbol = vessel.mainBody.position - FlightGlobals.Bodies[0].position;
-			float dot = Mathf.Clamp(Vector3.Dot(vesselPos, toKerbol), 0f, 1f);
-
-			travelDuration = distanceToTarget / averageSpeed;
-			totalPowerAvailable = ((solarPower * dot) + otherPower) * travelDuration;
-			totalPowerRequired = powerRequired * travelDuration;
-			Debug.Log("travelDuration = " + travelDuration.ToString());
-			Debug.Log("totalPowerAvailable = " + totalPowerAvailable.ToString());
-			Debug.Log("totalPowerRequired = " + totalPowerRequired.ToString());
-
-			if (solarPower + otherPower < powerRequired && (totalPowerAvailable + chargeAmount) < totalPowerRequired)
+			if (solarPower + otherPower < powerRequired)
 			{
 				ScreenMessages.PostScreenMessage ("Your power production is low", 5);
 				ScreenMessages.PostScreenMessage ("You need MOAR solar panels", 6);
