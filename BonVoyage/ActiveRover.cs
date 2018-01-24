@@ -29,6 +29,9 @@ namespace BonVoyage
 		private bool isManned;
 		private ConfigNode BVModule;
 		private List<PathUtils.WayPoint> path;
+		private double chargeAmount;
+		private double totalPowerAvailable;
+		private double totalPowerRequired;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="BonVoyage.ActiveRover"/> class.
@@ -59,6 +62,9 @@ namespace BonVoyage
 			targetLatitude = double.Parse (BVModule.GetValue ("targetLatitude"));
 			targetLongitude = double.Parse (BVModule.GetValue ("targetLongitude"));
 			averageSpeed = double.Parse(BVModule.GetValue ("averageSpeed"));
+			chargeAmount = double.Parse(BVModule.GetValue("chargeAmount"));
+			totalPowerAvailable = double.Parse(BVModule.GetValue("totalPowerAvailable"));
+			totalPowerRequired = double.Parse(BVModule.GetValue("totalPowerRequired"));
 
 			path = PathUtils.DecodePath(BVModule.GetValue("pathEncoded"));
 			speedMultiplier = 1.0;
@@ -86,17 +92,17 @@ namespace BonVoyage
 			double angle = Vector3d.Angle(vesselPos, toKerbol);
 
 			// Speed penalties at twighlight and at night
-			if (angle > 90 && isManned)
+			if (angle > 90 && isManned && totalPowerRequired < totalPowerAvailable)
 				speedMultiplier = 0.25;
-			else if (angle > 85 && isManned)
+			else if (angle > 85 && isManned && totalPowerRequired < totalPowerAvailable)
 				speedMultiplier = 0.5;
-			else if (angle > 80 && isManned)
+			else if (angle > 80 && isManned && totalPowerRequired < totalPowerAvailable)
 				speedMultiplier = 0.75;
 			else
 				speedMultiplier = 1.0;
 
 			// No moving at night, or when there's not enougth solar light for solar powered rovers
-			if (angle > 90 && solarPowered)
+			if (angle > 90 && solarPowered && totalPowerRequired < totalPowerAvailable)
 			{
 				status = "awaiting sunlight";
 				lastTime = currentTime;
