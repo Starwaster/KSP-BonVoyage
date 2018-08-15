@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-//using KSP
+using KSP;
 
 namespace BonVoyage
 {
@@ -66,7 +66,8 @@ namespace BonVoyage
 			directions.Add (300, new Point(-1, 0)); // 300
 		}
 
-		public void FindPath() {
+		public void FindPath()
+		{
 			double distanceToTarget = GeoUtils.GetDistance (startLatitude, startLongitude, targetLatitude, targetLongitude, mainBody.Radius);
 			if (distanceToTarget < StepSize) return;
 			double bearing = GeoUtils.InitialBearing (startLatitude, startLongitude, targetLatitude, targetLongitude);
@@ -124,13 +125,15 @@ namespace BonVoyage
 					double newBearing = GeoUtils.FinalBearing (tile.Latitude, tile.Longitude, coords [0], coords [1]);
 					newBearing = (newBearing - direction.Key + 360) % 360;
 					double altitude = GeoUtils.TerrainHeightAt (coords [0], coords [1], mainBody);
-					neighbour = new Hex (coords [0], coords [1], altitude, newBearing, tile.X + dirX, tile.Y + dirY, this);
+					neighbour = new Hex (coords [0], coords [1], altitude, newBearing, tile.X + dirX, tile.Y + dirY, this, ScienceUtil.GetExperimentBiome(mainBody, tile.Latitude, tile.Longitude));
 				}
 				neighbours.Add (neighbour);
 				tiles.Add (neighbour);
 			}
-			if (passable) {
+			if (passable)
+			{
 				return neighbours.Where (
+					//n => (n.Altitude >= 0 || !mainBody.ocean) 
 					n => (n.Altitude >= 0 || !mainBody.ocean) &&
 					((n.Altitude - tile.Altitude) < StepSize / 2) &&
 					((n.Altitude - tile.Altitude) > 0 - StepSize / 2)

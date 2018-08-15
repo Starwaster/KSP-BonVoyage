@@ -15,8 +15,9 @@ namespace BonVoyage
 			public int operable;
 			public int damaged;
 			public int online;
+			public bool amphibious;
 
-			public WheelTestResult(double powerRequired, double maxSpeedSum, int inTheAir, int operable, int damaged, int online)
+			public WheelTestResult(double powerRequired, double maxSpeedSum, int inTheAir, int operable, int damaged, int online, bool amphibious = false)
 			{
 				this.powerRequired = powerRequired;
 				this.maxSpeedSum = maxSpeedSum;
@@ -24,6 +25,23 @@ namespace BonVoyage
 				this.operable = operable;
 				this.damaged = damaged;
 				this.online = online;
+				this.amphibious = amphibious;
+			}
+		}
+
+		public struct AmphibiousTestResult
+		{
+			public double powerRequired;
+			public double airSpeed;
+			public double waterSpeed;
+			public bool inTheWater;
+
+			public AmphibiousTestResult(double powerRequired, double airSpeed, double waterSpeed, bool inTheWater)
+			{
+				this.powerRequired = powerRequired;
+				this.airSpeed = airSpeed;
+				this.waterSpeed = waterSpeed;
+				this.inTheWater = inTheWater;
 			}
 		}
 
@@ -53,6 +71,12 @@ namespace BonVoyage
 		[KSPField(isPersistant = true)] //, guiName = "Average speed", guiActive = true)]
 		public double averageSpeed = 0;
 
+		[KSPField(isPersistant = true)] //, guiName = "Average speed", guiActive = true)]
+		public double amphibiousAirSpeed = 0;
+
+		[KSPField(isPersistant = true)] //, guiName = "Average speed", guiActive = true)]
+		public double amphibiousWaterSpeed = 0;
+
 		[KSPField(isPersistant = true)] //, guiName = "Last Updated", guiActive = false)]
 		public double lastTime = 0;
 
@@ -78,10 +102,14 @@ namespace BonVoyage
 
 		public double solarPower;
 		public double otherPower;
+
+		[KSPField(isPersistant = true)]
 		public double powerRequired;
 		public double travelDuration;
 
 		public WheelTestResult testResult = new WheelTestResult();
+		public AmphibiousTestResult isAmphibious = new AmphibiousTestResult();
+		private RaycastHit hit;
 
 		public void SystemCheck()
 		{
@@ -90,6 +118,8 @@ namespace BonVoyage
 
 			// Test KSPWheels
 			WheelTestResult KSPWheelsTest = CheckKSPWheels();
+
+			isAmphibious = IsAmphibious();
 
 			// Combine the two
 			testResult.powerRequired = wheelsTest.powerRequired + KSPWheelsTest.powerRequired;
@@ -106,6 +136,9 @@ namespace BonVoyage
 			else
 				averageSpeed = 0;
 
+			amphibiousAirSpeed = isAmphibious.airSpeed;
+			amphibiousWaterSpeed = isAmphibious.waterSpeed;
+
 			// Unmanned rovers drive with 80% speed penalty
 			this.isManned = (this.vessel.GetCrewCount() > 0);
 			if (!this.isManned) //{
@@ -114,7 +147,7 @@ namespace BonVoyage
 
 			// Generally moving at high speed requires less power than wheels' max consumption
 			// To start BV online wheels consumption must be less than or equal to 35% of max power production
-			powerRequired = wheelsTest.powerRequired / 100 * 35;
+			powerRequired = Math.Max(wheelsTest.powerRequired / 100 * 35, isAmphibious.powerRequired / 100 * 35);
 
 			// Check for power production
 			solarPower = CalculateSolarPower();
@@ -133,7 +166,7 @@ namespace BonVoyage
 		//		[KSPEvent(guiActive = true, guiName = "Pick target on map")]
 		public void PickTarget()
 		{
-			if (this.vessel.situation != Vessel.Situations.LANDED)
+			if (this.vessel.situation == (Vessel.Situations.LANDED | Vessel.Situations.SPLASHED))
 				return;
 			Deactivate();
 			MapView.EnterMapView();
@@ -217,7 +250,7 @@ namespace BonVoyage
 		//		[KSPEvent(guiActive = true, guiName = "Poehali!!!", isPersistent = true)]
 		public void Activate()
 		{
-			if (this.vessel.situation != Vessel.Situations.LANDED)
+			if (this.vessel.situation != Vessel.Situations.LANDED && this.vessel.situation != Vessel.Situations.SPLASHED)
 			{
 				ScreenMessages.PostScreenMessage("Something is wrong", 5);
 				ScreenMessages.PostScreenMessage("Hmmmm, what can it be?", 6);
@@ -247,22 +280,22 @@ namespace BonVoyage
 			//			testResult.damaged = wheelsTest.damaged + KSPWheelsTest.damaged;
 			//			testResult.online = wheelsTest.online + KSPWheelsTest.online;
 
-			// No driving until 4 operable wheels are touching the ground
-			if (testResult.inTheAir > 0 && testResult.operable < 4)
+			// No driving until 4 operable wheels are touching the ground           !true                               !false
+			if ((testResult.inTheAir > 0 && testResult.operable < 4) && !(isAmphibious.waterSpeed > 0)  && !(isAmphibious.airSpeed > 0))
 			{
 				ScreenMessages.PostScreenMessage("Wheels are not touching the ground, are you serious???");
 				return;
 			}
 
 			//Buy some wheels, maaaan
-			if (testResult.operable < 4)
+			if (testResult.operable < 4 && !(isAmphibious.waterSpeed > 0) && !(isAmphibious.airSpeed > 0))
 			{
 				ScreenMessages.PostScreenMessage("Don't be a miser, add some more wheels to you rover!");
 				return;
 			}
 
 			// Looks like no wheels are on
-			if (testResult.online < 2)
+			if (testResult.online < 2 && !(isAmphibious.waterSpeed > 0) && !(isAmphibious.airSpeed > 0))
 			{
 				ScreenMessages.PostScreenMessage("At least two wheels must be online!");
 				return;
@@ -296,7 +329,7 @@ namespace BonVoyage
 			totalPowerAvailable = ((solarPower * dot) + otherPower) * travelDuration;
 			totalPowerRequired = powerRequired * travelDuration;
 			Debug.Log("travelDuration = " + travelDuration.ToString());
-			Debug.Log("totalPowerAvailable = " + totalPowerAvailable.ToString());
+			Debug.Log("totalPowerAvailable = " + (totalPowerAvailable + chargeAmount).ToString());
 			Debug.Log("totalPowerRequired = " + totalPowerRequired.ToString());
 
 			if (solarPower + otherPower < powerRequired && (totalPowerAvailable + chargeAmount) < totalPowerRequired)
@@ -456,7 +489,46 @@ namespace BonVoyage
 		{
 			if (HighLogic.LoadedSceneIsEditor)
 				return;
+			GameEvents.onVesselGoOffRails.Add(OnVesselOffRails);
 			//			wayPoints = PathUtils.DecodePath (pathEncoded, this.vessel.mainBody);
+		}
+
+		private void OnVesselOffRails(Vessel v)
+		{
+			if ((object)v == null || v.isEVA)
+				return;
+			double altitude = GeoUtils.TerrainHeightAt(v.latitude, v.longitude, vessel.mainBody);
+
+			if (v.altitude < altitude + v.heightFromTerrain)
+				v.altitude = altitude + v.heightFromTerrain;
+			
+			try
+			{
+				Quaternion rotation;
+				Vector3d from = vessel.vesselTransform.up;
+				Vector3d to = GeoUtils.GetTerrainNormal(vessel.mainBody, vessel.latitude, vessel.longitude, altitude);
+				rotation = Quaternion.FromToRotation(from, to);
+				vessel.SetRotation(rotation);
+				/*
+				Quaternion rotation;
+				Vector3d forward = vessel.vesselTransform.forward;
+				Vector3d up;
+				if (vessel.Splashed)
+					up = vessel.mainBody.GetSurfaceNVector(vessel.latitude, vessel.longitude);
+				else
+					up = GeoUtils.GetTerrainNormal(vessel.mainBody, vessel.latitude, vessel.longitude, vessel.altitude);
+
+				rotation = Quaternion.LookRotation(forward, up);
+				//rotation.SetLookRotation(forward);
+				vessel.SetRotation(rotation);
+				*/
+			}
+			catch (Exception e)
+			{ }
+			finally
+			{
+			}
+			vessel.UpdateLandedSplashed();
 		}
 
 		private void Update()
@@ -489,10 +561,11 @@ namespace BonVoyage
 
 				PlaceTargetAtCursor();
 				GUI.Label(
-					new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 50),
+					new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 70),
 					"Latitude:" + this.targetLatitude.ToString("F") + "\n" +
 					"Longitude:" + this.targetLongitude.ToString("F") + "\n" +
-					"Biome:" + ScienceUtil.GetExperimentBiome(this.vessel.mainBody, targetLatitude, targetLongitude)
+					"Biome:" + ScienceUtil.GetExperimentBiome(this.vessel.mainBody, targetLatitude, targetLongitude) + "\n" +
+					"Alt ASL:" + GeoUtils.TerrainHeightAt(targetLatitude, targetLongitude, this.vessel.mainBody)
 				);
 				// Lock the waypoint if user clicks
 				if (Event.current.type == EventType.MouseUp && Event.current.button == 0)
@@ -531,6 +604,18 @@ namespace BonVoyage
 		//			averageSpeed = averageSpeed / 100 * Math.Min(70, (40 + 5 * wheelsOnline));
 		//			return averageSpeed;
 		//		}
+
+		public Vector3 DoRayCast(double latitude, double longitude, double altitude)
+		{
+			Vector3d worldRayCastStart = vessel.mainBody.GetWorldSurfacePosition(latitude, longitude, altitude + 1000);
+			// a point a bit below it, to aim down to the terrain:
+			Vector3d worldRayCastStop = vessel.mainBody.GetWorldSurfacePosition(latitude, longitude, altitude + 900);
+
+			if (Physics.Raycast(worldRayCastStart, (worldRayCastStop - worldRayCastStart), out hit, float.MaxValue, 32768))
+				return hit.normal;
+			else
+				return Vector3.up;
+		}
 
 		private double CalculateSolarPower()
 		{
@@ -690,6 +775,62 @@ namespace BonVoyage
 		}
 
 		/// <summary>
+		/// Checks if vehicle is amphibious
+		/// </summary>
+		private AmphibiousTestResult IsAmphibious()
+		{
+			double powerRequired = 0;
+			double airSpeed = 0;
+			double waterSpeed = 0;
+			bool inTheWater = false;
+			int amphibiousAir = 0;
+			int amphibiousWater = 0;
+
+			double airPowerRequired = 0;
+			double waterPowerRequired = 0;
+
+			List<Part> amphibiousParts = new List<Part>();
+			for (int i = 0; i < this.vessel.parts.Count; ++i)
+			{
+				var part = this.vessel.parts[i];
+				// quick dirty hack in lieu of sanity checking. Should check that we have more than two hover engines. (probably check if two or more boat engines, but we can get by with one)
+				// also need to do something about checking speed and power requirements
+				// also differentiate between in air with hover engines and in water with boat engine.
+				switch (part.name)
+				{
+					case "Lynx.HoverengineRear":
+						airPowerRequired += 11.375;
+						amphibiousAir++;
+						break;
+					case "Lynx.Hoverengine":
+						airPowerRequired += 7;
+						amphibiousAir++;
+						break;
+					case "Lynx.Boatengine":
+						amphibiousWater++;
+						waterPowerRequired += 1;
+						break;
+					default:
+						break;
+				}
+			}
+
+			inTheWater = vessel.situation == Vessel.Situations.SPLASHED || ScienceUtil.GetExperimentBiome(this.vessel.mainBody, targetLatitude, targetLongitude) == "Water" || vessel.Splashed;
+
+			if (amphibiousAir >= 3)
+				airSpeed = 60;
+			else
+				airPowerRequired = 0; // Because, oops, it turns out we can't fly after all so our hover engines don't need power.
+			
+			if (amphibiousWater > 0) 
+				waterSpeed = 24;
+			
+			powerRequired = Math.Max(airPowerRequired, waterPowerRequired);
+
+			return new AmphibiousTestResult(powerRequired, airSpeed, waterSpeed, inTheWater);
+		}
+
+		/// <summary>
 		/// Checks standard wheels with module ModuleWheelBase
 		/// </summary>
 		private WheelTestResult CheckWheels()
@@ -700,6 +841,7 @@ namespace BonVoyage
 			int operable = 0;
 			int damaged = 0;
 			int online = 0;
+			bool isAmphibious = false;
 
 			List<Part> wheels = new List<Part>();
 			for (int i = 0; i < this.vessel.parts.Count; i++)
@@ -708,6 +850,22 @@ namespace BonVoyage
 				if (part.Modules.Contains("ModuleWheelBase"))
 				{
 					wheels.Add(part);
+				}
+				else
+				{
+					// quick dirty hack in lieu of sanity checking. Should check that we have more than two hover engines. (probably check if two or more boat engines, but we can get by with one)
+					// also need to do something about checking speed and power requirements
+					// also differentiate between in air with hover engines and in water with boat engine.
+					switch (part.partName)
+					{
+						case "Lynx_HoverengineRear":
+						case "Lynx_Hoverengine":
+						case "Lynx_Boatengine":
+							isAmphibious = true;
+							break;
+						default:
+							break;
+					}
 				}
 			}
 
@@ -755,7 +913,7 @@ namespace BonVoyage
 					}
 				}
 			}
-			return new WheelTestResult(powerRequired, maxSpeedSum, inTheAir, operable, damaged, online);
+			return new WheelTestResult(powerRequired, maxSpeedSum, inTheAir, operable, damaged, online, isAmphibious);
 		}
 
 		/// <summary>

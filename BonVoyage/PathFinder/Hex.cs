@@ -15,6 +15,9 @@ namespace BonVoyage
 		public double altitude;
 		public double Altitude { get { return altitude; } }
 
+		public string Biome { get { return biome; } }
+		private string biome;
+
 		private double bearing;
 		public double Bearing { get { return bearing; } }
 
@@ -26,7 +29,7 @@ namespace BonVoyage
 
 		private PathFinder parent;
 
-		public Hex(double latitude, double longitude, double altitude, double bearing, int x, int y, PathFinder parent) {
+		public Hex(double latitude, double longitude, double altitude, double bearing, int x, int y, PathFinder parent, string biome = "") {
 			this.latitude = latitude;
 			this.longitude = longitude;
 			this.altitude = altitude;
@@ -34,6 +37,7 @@ namespace BonVoyage
 			this.x = x;
 			this.y = y;
 			this.parent = parent;
+			this.biome = biome;
 		}
 
 		public IEnumerable<Hex> Neighbours {

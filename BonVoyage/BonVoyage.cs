@@ -420,7 +420,8 @@ namespace BonVoyage
 				Layout.Label (rover.vessel.mainBody.bodyName, GUILayout.Width(75));
 				Layout.Label (rover.status, GUILayout.Width (125));
 
-				if (rover.status == "roving" || rover.status == "awaiting sunlight") {
+				if (rover.status == "roving" || rover.status == "awaiting sunlight")
+				{
 					Layout.Label (
 						"v̅ = " + rover.AverageSpeed.ToString ("N") + ", yet to travel " +
 						rover.yetToTravel.ToString ("N0") + " meters"
@@ -495,15 +496,17 @@ namespace BonVoyage
 				)
 			);
 			Layout.LabelAndText ("Target latitude", currentModule.targetLatitude.ToString());
-			Layout.LabelAndText ("Target longitude", currentModule.targetLatitude.ToString());
+			Layout.LabelAndText ("Target longitude", currentModule.targetLongitude.ToString());
 			Layout.LabelAndText ("Distance to target", currentModule.distanceToTarget.ToString("N0"));
 			Layout.LabelAndText ("Distance travelled", currentModule.distanceTravelled.ToString("N0"));
-			Layout.LabelAndText ("Average speed", currentModule.averageSpeed.ToString("F"));
+			Layout.LabelAndText ("Average speed", Math.Max(Math.Max(currentModule.isAmphibious.airSpeed, currentModule.isAmphibious.waterSpeed), currentModule.averageSpeed).ToString("F"));
 			Layout.LabelAndText ("Solar power", currentModule.solarPower.ToString("F"));
-			Layout.LabelAndText ("Other power", currentModule.otherPower.ToString("F"));
-			Layout.LabelAndText ("Power required", currentModule.powerRequired.ToString("F"));
+			Layout.LabelAndText("Other power", currentModule.otherPower.ToString("F"));
+			Layout.LabelAndText("Stored power", currentModule.chargeAmount.ToString("F2"));
+			Layout.LabelAndText ("Power required", currentModule.powerRequired.ToString("F") + "/" + currentModule.totalPowerRequired.ToString("F"));
 			Layout.LabelAndText ("Solar powered", currentModule.solarPowered.ToString ());
 			Layout.LabelAndText ("Is manned", currentModule.isManned.ToString ());
+			Layout.LabelAndText("Height From Terrain", currentModule.vessel.heightFromTerrain.ToString("F3"));
 
 //			Layout.TextField ("lat");
 //			Layout.TextField ("lon");
@@ -517,7 +520,7 @@ namespace BonVoyage
 				currentModule.SetToWaypoint ();
 			}
 			if (!currentModule.isActive) {
-				if (Layout.Button ("Poehali!!!", Palette.green)) {
+				if (Layout.Button ("Auto Drive", Palette.green)) {
 					currentModule.Activate ();
 				}
 			} else {
@@ -580,7 +583,7 @@ namespace BonVoyage
 				foreach(ConfigNode part in vesselConfigNode.GetNodes("PART")) {
 					ConfigNode BVModule = part.GetNode("MODULE", "name", "BonVoyageModule");
 					if (BVModule != null) {
-						activeRovers.Add (new ActiveRover (vessel, BVModule, vesselConfigNode));
+						activeRovers.Add (new ActiveRover (vessel, BVModule));
 						break;
 					}
 				}

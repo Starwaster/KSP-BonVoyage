@@ -1,4 +1,6 @@
 ﻿using System;
+using UnityEngine;
+
 namespace BonVoyage
 {
 	public class GeoUtils
@@ -146,6 +148,8 @@ namespace BonVoyage
 			};
 		}
 
+		private const int TERRAIN_MASK_BIT = 15;
+
 		// Get altitude at point. Cinically stolen from Waypoint Manager source code :D
 		internal static double TerrainHeightAt(double latitude, double longitude, CelestialBody body)
 		{
@@ -156,11 +160,55 @@ namespace BonVoyage
 			}
 
 			// Figure out the terrain height
+			double alt;
 			double latRads = PI / 180.0 * latitude;
 			double lonRads = PI / 180.0 * longitude;
 			Vector3d radialVector = new Vector3d(Math.Cos(latRads) * Math.Cos(lonRads), Math.Sin(latRads), Math.Cos(latRads) * Math.Sin(lonRads));
-			return body.pqsController.GetSurfaceHeight (radialVector) - body.pqsController.radius;
+
+			alt = body.pqsController.GetSurfaceHeight(radialVector) - body.pqsController.radius;
+
+			if (body.ocean)
+				alt = Math.Max(0, alt);
+
+			return alt;
+
+			var bodyUpVector = new Vector3d(1, 0, 0);
+			bodyUpVector = QuaternionD.AngleAxis(latitude, Vector3d.forward/*around Z axis*/) * bodyUpVector;
+			bodyUpVector = QuaternionD.AngleAxis(longitude, Vector3d.down/*around -Y axis*/) * bodyUpVector;
+
+			//alt = body.pqsController.GetSurfaceHeight (bodyUpVector) - body.pqsController.radius;
 			//			return Math.Max(body.pqsController.GetSurfaceHeight(radialVector) - body.pqsController.radius, 0.0);
+			alt = body.TerrainAltitude(latitude, longitude, false);
+			return alt;
+
+			Vector3d worldRayCastStart = body.GetWorldSurfacePosition(latitude, longitude, alt + 1000);
+			// a point a bit below it, to aim down to the terrain:
+			Vector3d worldRayCastStop = body.GetWorldSurfacePosition(latitude, longitude, alt + 900);
+			RaycastHit hit;
+			if (Physics.Raycast(worldRayCastStart, (worldRayCastStop - worldRayCastStart), out hit, float.MaxValue, 32768))
+			{
+				// Ensure hit is on the topside of planet, near the worldRayCastStart, not on the far side.
+				if (Mathf.Abs(hit.distance) <= alt + 1000)
+				{
+					// Okay a hit was found, use it instead of PQS alt:
+					alt = ((body.Radius + 1000) - hit.distance);
+				}
+				else
+					alt = 0;
+			}
+			return alt;
+		}
+
+		internal static Vector3 GetTerrainNormal(CelestialBody body, double latitude, double longitude, double altitude)
+		{
+			Vector3d worldRayCastStart = body.GetWorldSurfacePosition(latitude, longitude, altitude + 1000);
+			// a point a bit below it, to aim down to the terrain:
+			Vector3d worldRayCastStop = body.GetWorldSurfacePosition(latitude, longitude, altitude + 900);
+			RaycastHit hit;
+			if (Physics.Raycast(worldRayCastStart, (worldRayCastStop - worldRayCastStart), out hit, float.MaxValue, 32768))
+				return hit.normal;
+			else
+				return Vector3.up;
 		}
 	}
 }
